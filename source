@@ -1,0 +1,65 @@
+import nltk
+from nltk.corpus import stopwords
+from nltk.tokenize import word_tokenize
+from nltk.stem import WordNetLemmatizer
+
+nltk.download('punkt')
+nltk.download('stopwords')
+nltk.download('wordnet')
+
+def preprocess_text(text):
+    # Convert to lowercase
+    text = text.lower()
+    # Tokenize
+    words = word_tokenize(text)
+    # Remove stopwords
+    words = [word for word in words if word not in stopwords.words('english')]
+    # Lemmatize
+    lemmatizer = WordNetLemmatizer()
+    words = [lemmatizer.lemmatize(word) for word in words]
+    return words
+from sklearn.feature_extraction.text import TfidfVectorizer
+
+def extract_features(corpus):
+    vectorizer = TfidfVectorizer(max_features=1000)
+    X = vectorizer.fit_transform(corpus)
+    return X, vectorizer
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.pipeline import make_pipeline
+
+# Example dataset (corpus) and labels (personality traits)
+corpus = ["Sample resume text 1", "Sample resume text 2"]
+labels = [1, 0]  # Example labels
+
+# Preprocess text and extract features
+processed_corpus = [preprocess_text(doc) for doc in corpus]
+X, vectorizer = extract_features([' '.join(doc) for doc in processed_corpus])
+
+# Split data
+X_train, X_test, y_train, y_test = train_test_split(X, labels, test_size=0.2, random_state=42)
+
+# Train model
+model = RandomForestClassifier()
+model.fit(X_train, y_train)
+from sklearn.metrics import accuracy_score, classification_report
+
+# Predict and evaluate
+y_pred = model.predict(X_test)
+print("Accuracy:", accuracy_score(y_test, y_pred))
+print("Classification Report:\n", classification_report(y_test, y_pred))
+from flask import Flask, request, jsonify
+
+app = Flask(__name__)
+
+@app.route('/predict', methods=['POST'])
+def predict():
+    data = request.json
+    text = data['text']
+    processed_text = ' '.join(preprocess_text(text))
+    features = vectorizer.transform([processed_text])
+    prediction = model.predict(features)
+    return jsonify({'prediction': int(prediction[0])})
+
+if __name__ == '__main__':
+    app.run(debug=True)
